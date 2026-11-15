@@ -5,14 +5,28 @@ Never substitutes current NBA teams or infers future eligible starts.
 """
 import argparse,json
 from pathlib import Path
-from nba_schedule_validation import validate_games
+from nba_schedule_validation import parse_utc,team,NY,PH
 from historical_team_resolver import resolve_historical_teams
 from yahoo_dated_lineup_audit import audit_dated_roster
 from bridge import load_stats
 def run(league_id,roster,stats,fixture_payload,yahoo_date):
     if fixture_payload.get("coverage_verified") is not True:
         raise ValueError("Verified fixture response required")
-    fixtures=validate_games(fixture_payload,yahoo_date,yahoo_date)
+    # Completed games must not be passed through the future-only fixture validator.
+    fixtures=[];seen=set()
+    for game in fixture_payload.get("games",[]):
+        gid=str(game.get("game_id") or "")
+        if not gid or gid in seen:raise ValueError("Missing/duplicate historical game ID")
+        seen.add(gid)
+        tip=parse_utc(game.get("start_utc"))
+        eastern=tip.astimezone(NY).date().isoformat()
+        if eastern!=yahoo_date:continue
+        if str(game.get("status") or "").lower() not in ("final","post","completed"):
+            raise ValueError("Historical fixture not confirmed completed")
+        home,away=team(game.get("home")),team(game.get("away"))
+        if not home or not away or home==away:raise ValueError("Invalid historical teams")
+        fixtures.append({"game_id":gid,"yahoo_date":eastern,"philippines_date":tip.astimezone(PH).date().isoformat(),
+                         "home":home,"away":away})
     resolved=resolve_historical_teams(roster,stats,yahoo_date,fixtures)
     audit=audit_dated_roster(league_id,resolved,fixtures,yahoo_date,yahoo_date)
     return {"league_id":league_id,"yahoo_date":yahoo_date,
