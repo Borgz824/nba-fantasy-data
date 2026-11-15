@@ -16,8 +16,10 @@ class HistoricalTeamTests(unittest.TestCase):
   self.assertIsNone(r["players"][0]["team"])
  def test_two_espn_ids_ambiguous(self):
   self.assertFalse(self.run_resolve([self.row,{**self.row,"athlete_id":"888"}])["all_teams_verified"])
- def test_two_teams_ambiguous(self):
+ def test_two_valid_teams_ambiguous(self):
   self.assertFalse(self.run_resolve([self.row,{**self.row,"team":"BOS"}])["all_teams_verified"])
+ def test_team_outside_fixture_rejected(self):
+  self.assertFalse(self.run_resolve([{**self.row,"team":"LAL"}])["all_teams_verified"])
  def test_other_game_id_not_matched(self):
   self.assertFalse(self.run_resolve([{**self.row,"game_id":"2"}])["all_teams_verified"])
  def test_mismatched_roster_date_rejected(self):
