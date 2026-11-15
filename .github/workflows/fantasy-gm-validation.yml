@@ -9,6 +9,7 @@ on:
       - 'espn_fixture_feed.py'
       - 'gm_readiness.py'
       - 'yahoo_lineup_validation.py'
+      - 'add_drop_optimizer.py'
       - 'test_*.py'
       - '.github/workflows/fantasy-gm-validation.yml'
   workflow_dispatch:
@@ -21,7 +22,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run schedule and feed tests
-        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation
+        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation test_optimizer_audit
       - name: Verify source compiles
         run: python -m py_compile nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py yahoo_lineup_validation.py
       - name: Live ESPN fixture smoke test
