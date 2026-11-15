@@ -33,6 +33,13 @@ def merge(intelligence,report,roster=None):
             if norm(name):
                 matches=lookup.setdefault(norm(name),[])
                 if p not in matches:matches.append(p)
+    # Narrow, explicit given-name equivalence; never fuzzy-match surnames.
+    aliases={"christopher":"chris"}
+    for p in players:
+        tokens=p["name"].split(" ",1)
+        if len(tokens)==2 and tokens[0].casefold() in aliases.values():
+            full=next((k for k,v in aliases.items() if v==tokens[0].casefold()),None)
+            if full:lookup.setdefault(norm(full+" "+tokens[1]),[]).append(p)
     matched=[];unmatched=[];ambiguous=[]
     for entry in report["entries"]:
         name=candidate_name(entry.get("name_candidate"))
