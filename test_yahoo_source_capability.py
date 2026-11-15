@@ -7,6 +7,14 @@ class YahooSourceCapabilityTests(unittest.TestCase):
   self.assertTrue(r["matchup_category_totals_available"])
   self.assertFalse(r["player_daily_fantasy_scoring_verified"])
   self.assertFalse(r["add_drop_ready"])
+ def test_complete_metadata_does_not_unlock(self):
+  p={"playerId":"1","eligiblePositions":["PG","G"],"isEditable":True,"isUndroppable":False,"team":"PHI"}
+  r=assess_yahoo_sources({"matchups":[]},{"players":[p]})
+  self.assertEqual(r["native_eligibility_count"],1)
+  self.assertEqual(r["editable_flag_count"],1)
+  self.assertEqual(r["nba_team_metadata_count"],1)
+  self.assertFalse(r["future_lineup_lock_times_verified"])
+  self.assertFalse(r["add_drop_ready"])
  def test_missing_roster_ids(self):
   r=assess_yahoo_sources({"matchups":[]},{"players":[{}]})
   self.assertFalse(r["roster_player_ids_available"])
