@@ -47,3 +47,9 @@ jobs:
           name: espn-completed-2026-11-12
           path: /tmp/espn_completed_20261112.json
           retention-days: 7
+      - name: Upload public upcoming fixture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: espn-upcoming-yahoo-today
+          path: /tmp/espn_fixtures.json
+          retention-days: 3
