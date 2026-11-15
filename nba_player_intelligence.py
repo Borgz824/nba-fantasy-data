@@ -27,7 +27,12 @@ def calculate(rows,fixtures,as_of):
         key=(row["athlete_id"],row["game_id"])
         if key in seen:raise ValueError("Duplicate player-game record: "+str(key))
         seen.add(key)
-        # ESPN can emit "--" minutes for a DNP. Exclude it from played-game samples.\n        if str(row.get("minutes","")).strip() in ("--",""):\n            if all(float(row[k])==0 for k in METRICS if k!="minutes"):\n                continue\n            raise ValueError("Missing minutes with nonzero statistics: "+str(key))\n        parsed=dict(row);parsed["_date"]=day
+        # ESPN can emit "--" minutes for a DNP. Exclude it from played-game samples.
+        if str(row.get("minutes","")).strip() in ("--",""):
+            if all(float(row[k])==0 for k in METRICS if k!="minutes"):
+                continue
+            raise ValueError("Missing minutes with nonzero statistics: "+str(key))
+        parsed=dict(row);parsed["_date"]=day
         for metric in METRICS:
             try:parsed[metric]=float(row[metric])
             except (TypeError,ValueError):raise ValueError("Missing/invalid "+metric+" for "+str(key))
