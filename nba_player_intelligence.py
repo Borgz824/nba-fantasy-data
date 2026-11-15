@@ -59,8 +59,10 @@ def calculate(rows,fixtures,as_of):
                 "per_game":{k:round(totals[k]/n,3) if n else None for k in METRICS},
                 "fg_pct":round(totals["fgm"]/totals["fga"],4) if totals["fga"] else None,
                 "ft_pct":round(totals["ftm"]/totals["fta"],4) if totals["fta"] else None,
-                "three_pct":round(totals["3pm"]/totals["3pa"],4) if totals["3pa"] else None}
-        players.append({"athlete_id":athlete_id,"name":latest["player"],"team":latest["team"],
+                "three_pct":round(totals["3pm"]/totals["3pa"],4) if totals["3pa"] else None,
+                "effective_fg_pct":round((totals["fgm"]+0.5*totals["3pm"])/totals["fga"],4) if totals["fga"] else None,
+                "true_shooting_pct":round(totals["pts"]/(2*(totals["fga"]+0.44*totals["fta"])),4) if totals["fga"]+0.44*totals["fta"] else None}
+        players.append({"athlete_id":athlete_id,"name":latest["player"],"team":latest["team"],"position":latest.get("position") or None,
                         "last_game_date":latest["_date"].isoformat(),"windows":windows,
                         "scheduled_games":team_days.get(latest["team"],[]),
                         "scheduled_game_count":len(team_days.get(latest["team"],[])),
