@@ -14,12 +14,12 @@ def fetch(url):
         return r.read()
 def collect():
     html=fetch(PAGE).decode("utf-8","replace")
-    links=re.findall(r'https?[^"\\s<>]+Injury-Report_2026-[0-9]{2}-[0-9]{2}_[0-9]{2}_[0-9]{2}(?:AM|PM)\\.pdf',html)
+    links=re.findall(r'https?[^"\s<>]+Injury-Report_2026-[0-9]{2}-[0-9]{2}_[0-9]{2}_[0-9]{2}(?:AM|PM)\.pdf',html)
     links=[x.replace("&amp;","&") for x in links]
     if not links:raise ValueError("No official NBA injury PDF URLs discovered")
     # Report filenames sort by date, but AM/PM is normalized to 24h.
     def stamp(url):
-        m=re.search(r'Injury-Report_(\\d{4}-\\d{2}-\\d{2})_(\\d{2})_(\\d{2})(AM|PM)',url)
+        m=re.search(r'Injury-Report_(\d{4}-\d{2}-\d{2})_(\d{2})_(\d{2})(AM|PM)',url)
         if not m:return ""
         d,h,minute,ap=m.groups()
         return f"{d}T{int(h)%12+(12 if ap=='PM' else 0):02d}:{minute}"
@@ -28,7 +28,7 @@ def collect():
     reader=PdfReader(BytesIO(pdf))
     pages=[p.extract_text(extraction_mode="layout") or "" for p in reader.pages]
     entries=[]
-    statuses=re.compile(r'\\b(Available|Out|Questionable|Doubtful|Probable)\\b')
+    statuses=re.compile(r'\b(Available|Out|Questionable|Doubtful|Probable)\b')
     for pno,page in enumerate(pages,1):
         for line in page.splitlines():
             match=statuses.search(line)
