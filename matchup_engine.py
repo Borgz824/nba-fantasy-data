@@ -41,7 +41,7 @@ def project(stats,league,snapshot,min_games=5):
     lid=league["league_id"]
     if lid not in ("478.l.31010","478.l.33011"):raise ValueError("Unsupported league")
     cats=NETMON if lid.endswith("31010") else PWT
-    joined,issues=build(stats,[league])
+    if not snapshot.get("validation",{}).get("current_totals_complete",False):\n        raise ValueError("Yahoo current totals not validated; run Flaim adapter first")\n    joined,issues=build(stats,[league])
     indexed={p["yahoo_player_id"]:p for p in joined[lid]}
     def side(side_name):
         s=snapshot[side_name]
@@ -54,7 +54,7 @@ def project(stats,league,snapshot,min_games=5):
             player["status"]=next((p.get("status","") for p in league["players"] if p.get("playerId")==pid),"")
             roster.append(player)
         return forecast(s["current_totals"],roster,s.get("remaining_games",{}),min_games)
-    ours,ours_missing=side("ours");theirs,theirs_missing=side("opponent")
+    ours,ours_missing=side("ours");theirs,theirs_missing=side("opponent")\n    if not snapshot.get("validation",{}).get("future_starts_verified",False):\n        ours_missing.append({"reason":"future starts not verified"})\n        theirs_missing.append({"reason":"future starts not verified"})
     return {"league_id":lid,"week":snapshot.get("week"),"scenario":"historical rates multiplied by explicitly supplied remaining games","categories":score(ours,theirs,cats),"blocked_players":{"ours":ours_missing,"opponent":theirs_missing},"identity_issues":issues,"complete":not(ours_missing or theirs_missing or issues),"warning":"Not a probability or guaranteed final score; requires verified Yahoo totals, eligible lineup starts, game counts and injury review"}
 
 def main():
