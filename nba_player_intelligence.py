@@ -9,6 +9,7 @@ from collections import defaultdict
 from datetime import date,datetime,timedelta,timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from nba_schedule_validation import team
 
 METRICS=("minutes","fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts")
 EASTERN=ZoneInfo("America/New_York")
@@ -45,7 +46,7 @@ def calculate(rows,fixtures,as_of):
         day=as_day(game["start_utc"])
         if day<today:continue
         for side in ("home","away"):
-            team_days[game[side]].append({"game_id":game["game_id"],"yahoo_date":day.isoformat(),"philippines_date":datetime.fromisoformat(game["start_utc"].replace("Z","+00:00")).astimezone(ZoneInfo("Asia/Manila")).date().isoformat()})
+            team_days[team(game[side])].append({"game_id":game["game_id"],"yahoo_date":day.isoformat(),"philippines_date":datetime.fromisoformat(game["start_utc"].replace("Z","+00:00")).astimezone(ZoneInfo("Asia/Manila")).date().isoformat()})
     team_games=defaultdict(list)
     for logs in grouped.values():
         for r in logs:
@@ -77,8 +78,8 @@ def calculate(rows,fixtures,as_of):
                 "true_shooting_pct":round(totals["pts"]/(2*(totals["fga"]+0.44*totals["fta"])),4) if totals["fga"]+0.44*totals["fta"] else None}
         players.append({"athlete_id":athlete_id,"name":latest["player"],"team":latest["team"],"position":latest.get("position") or None,
                         "last_game_date":latest["_date"].isoformat(),"windows":windows,
-                        "scheduled_games":team_days.get(latest["team"],[]),
-                        "scheduled_game_count":len(team_days.get(latest["team"],[])),
+                        "scheduled_games":team_days.get(team(latest["team"]),[]),
+                        "scheduled_game_count":len(team_days.get(team(latest["team"]),[])),
                         "eligible_starts_verified":False,"injury_verified":False,
                         "usage_rate":windows["season"]["usage_rate"],"usage_rate_verified":False,"usage_rate_method":"estimated_from_ESPN_team_boxscores"})
     return {"source":"ESPN player-game logs and ESPN unofficial scoreboard",
