@@ -39,3 +39,9 @@ jobs:
         run: |
           python completed_fixture_feed.py --start-date 2026-11-12 --end-date 2026-11-12 --out /tmp/espn_completed_20261112.json
           python -c 'import json; from nba_schedule_validation import NY,parse_utc; d=json.load(open("/tmp/espn_completed_20261112.json")); assert d["coverage_verified"]; assert all(g["status"]=="final" and parse_utc(g["start_utc"]).astimezone(NY).date().isoformat()=="2026-11-12" for g in d["games"]); print("Nov 12 completed NBA games:",len(d["games"]),"; independent completeness not guaranteed")'
+      - name: Upload public historical fixture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: espn-completed-2026-11-12
+          path: /tmp/espn_completed_20261112.json
+          retention-days: 7
