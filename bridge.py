@@ -13,7 +13,7 @@ ALIASES={"nikola jokic":"nikola jokic","og anunoby":"og anunoby"}
 def normalize(s):
     s=unicodedata.normalize("NFKD",str(s or "")).encode("ascii","ignore").decode().lower()
     s=re.sub(r"[^a-z0-9 ]+"," ",s)
-    return re.sub(r"\\s+"," ",s).strip()
+    return re.sub(r"\s+"," ",s).strip()
 
 def load_stats(path):
     with open(path,newline="",encoding="utf-8") as f: rows=list(csv.DictReader(f))
