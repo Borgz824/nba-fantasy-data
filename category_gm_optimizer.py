@@ -27,6 +27,8 @@ def evaluate(stats,snapshot,min_games=5,limit=30):
         if lid not in LEAGUES or lid in outputs:raise ValueError("Unknown/duplicate league")
         roster=_people(league,"roster")
         agents=_people(league,"free_agents")
+        roster=[dict(p,playerId=p.get('playerId',p.get('id'))) for p in roster]
+        agents=[dict(p,playerId=p.get('playerId',p.get('id'))) for p in agents]
         people=roster+agents
         if not roster or not agents:
             outputs[lid]={"ready":False,"reason":"Missing roster or free agents","recommendations":[]}
