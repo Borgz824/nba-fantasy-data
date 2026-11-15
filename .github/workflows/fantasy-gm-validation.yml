@@ -1,0 +1,25 @@
+name: Fantasy GM Validation
+on:
+  push:
+    branches:
+      - fix/fantasy-40-check-validation
+  pull_request:
+    paths:
+      - 'nba_schedule_validation.py'
+      - 'espn_fixture_feed.py'
+      - 'gm_readiness.py'
+      - 'test_*.py'
+      - '.github/workflows/fantasy-gm-validation.yml'
+  workflow_dispatch:
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run schedule and feed tests
+        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed
+      - name: Verify source compiles
+        run: python -m py_compile nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py
