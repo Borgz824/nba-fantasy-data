@@ -46,6 +46,17 @@ def calculate(rows,fixtures,as_of):
         if day<today:continue
         for side in ("home","away"):
             team_days[game[side]].append({"game_id":game["game_id"],"yahoo_date":day.isoformat(),"philippines_date":datetime.fromisoformat(game["start_utc"].replace("Z","+00:00")).astimezone(ZoneInfo("Asia/Manila")).date().isoformat()})
+    team_games=defaultdict(list)
+    for logs in grouped.values():
+        for r in logs:
+            team_games[(r["game_id"],r["team"])].append(r)
+    for logs in grouped.values():
+        for r in logs:
+            teammates=team_games[(r["game_id"],r["team"])]
+            team_minutes=sum(t["minutes"] for t in teammates)
+            team_plays=sum(t["fga"]+0.44*t["fta"]+t["to"] for t in teammates)
+            r["_usage_num"]=(r["fga"]+0.44*r["fta"]+r["to"])*team_minutes/5 if team_minutes else 0
+            r["_usage_den"]=r["minutes"]*team_plays
     players=[]
     for athlete_id,logs in grouped.items():
         logs.sort(key=lambda r:r["_date"])
@@ -55,7 +66,9 @@ def calculate(rows,fixtures,as_of):
             sample=[r for r in logs if cutoff is None or r["_date"]>today-timedelta(days=cutoff)]
             totals={k:round(sum(r[k] for r in sample),3) for k in METRICS}
             n=len(sample)
-            windows[label]={"games":n,"totals":totals,
+            usage_num=sum(r["_usage_num"] for r in sample)
+            usage_den=sum(r["_usage_den"] for r in sample)
+            windows[label]={"games":n,"totals":totals,"usage_rate":round(usage_num/usage_den,4) if usage_den else None,
                 "per_game":{k:round(totals[k]/n,3) if n else None for k in METRICS},
                 "fg_pct":round(totals["fgm"]/totals["fga"],4) if totals["fga"] else None,
                 "ft_pct":round(totals["ftm"]/totals["fta"],4) if totals["fta"] else None,
@@ -67,14 +80,14 @@ def calculate(rows,fixtures,as_of):
                         "scheduled_games":team_days.get(latest["team"],[]),
                         "scheduled_game_count":len(team_days.get(latest["team"],[])),
                         "eligible_starts_verified":False,"injury_verified":False,
-                        "usage_rate":None,"usage_rate_verified":False})
+                        "usage_rate":windows["season"]["usage_rate"],"usage_rate_verified":False,"usage_rate_method":"estimated_from_ESPN_team_boxscores"})
     return {"source":"ESPN player-game logs and ESPN unofficial scoreboard",
             "as_of_yahoo_eastern_date":as_of,"player_count":len(players),
             "source_player_games":len(seen),"fixture_games":len(games),
             "fixture_dates":fixtures.get("requested_yahoo_dates",[]),
             "coverage":{"historical_logs_independently_complete":False,
                         "fixture_provider_complete":False,"injury_verified":False,
-                        "advanced_usage_available":False,
+                        "advanced_usage_available":True,"advanced_usage_is_estimate":True,
                         "player_eligible_starts_verified":False},
             "players":sorted(players,key=lambda p:p["name"])}
 
