@@ -37,7 +37,8 @@ def collect():
             # Official report is tabular; preserve raw row for audit if player
             # extraction is ambiguous rather than guessing an identity.
             if "," not in prefix:continue
-            name_match=re.search(r"([A-Za-zÀ-ÿ.'-]+(?:\\s+(?:Jr\\.|Jr|II|III|IV))?),\\s*([A-Za-zÀ-ÿ.'-]+(?:\\s+[A-Za-zÀ-ÿ.'-]+)*)\\s*$",prefix)
+            normalized_prefix=re.sub(r"\\s+"," ",prefix).strip()
+            name_match=re.search(r"([A-Za-zÀ-ÿ.'-]+(?: Jr\\.)?),\\s*([A-Za-zÀ-ÿ.'-]+(?: [A-Za-zÀ-ÿ.'-]+)*)$",normalized_prefix)
             candidate=(name_match.group(1)+", "+name_match.group(2)) if name_match else None
             entries.append({"page":pno,"raw_line":line.strip(),"status":match.group(1),
                             "name_candidate":candidate,"name_parse_verified":bool(candidate)})
