@@ -8,7 +8,8 @@ import argparse,json
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
-from bridge import normalize,TEAM_ALIASES,load_stats
+from bridge import normalize,load_stats
+from nba_schedule_validation import team
 def resolve_historical_teams(roster,stats,as_of_date,fixtures=None):
     date.fromisoformat(as_of_date)
     if roster.get("snapshot",{}).get("type")!="date" or roster["snapshot"].get("date")!=as_of_date:
@@ -34,7 +35,7 @@ def resolve_historical_teams(roster,stats,as_of_date,fixtures=None):
         teams={str(r.get("team") or "").upper() for r in matches}
         if len(ids)==1 and "" not in ids and len(teams)==1 and "" not in teams:
             t=next(iter(teams))
-            out.append({**p,"team":TEAM_ALIASES.get(t,t),
+            out.append({**p,"team":team(t),
                         "team_resolution":"espn_fixture_game_id",
                         "espn_athlete_id":next(iter(ids))})
         else:
