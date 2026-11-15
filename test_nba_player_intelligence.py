@@ -18,7 +18,7 @@ class IntelligenceTests(unittest.TestCase):
         self.assertAlmostEqual(p["windows"]["season"]["fg_pct"],round(9/22,4))
         self.assertEqual(p["scheduled_game_count"],1)
         self.assertFalse(p["eligible_starts_verified"])
-        self.assertIsNone(p["usage_rate"])
+        self.assertAlmostEqual(p["usage_rate"],0.2)
     def test_reject_duplicate(self):
         r=row("2026-11-14","2",30,8,20)
         with self.assertRaises(ValueError):calculate([r,r],{"coverage_verified":True,"games":[]},"2026-11-15")
