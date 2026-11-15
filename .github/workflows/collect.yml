@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate ESPN–Yahoo bridge (offline test)
+        run: python -m unittest -v test_bridge.py
       - name: Collect ESPN player game logs
         id: collect
         run: python collect.py
