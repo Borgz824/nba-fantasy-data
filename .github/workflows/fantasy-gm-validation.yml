@@ -17,6 +17,7 @@ on:
       - 'future_lineup_candidates.py'
       - 'add_drop_optimizer.py'
       - 'category_gm_optimizer.py'
+      - 'daily_lineup_optimizer.py'
       - 'GM_ANALYSIS_SPEC.md'
       - 'test_*.py'
       - '.github/workflows/fantasy-gm-validation.yml'
@@ -30,9 +31,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Run schedule and feed tests
-        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation test_optimizer_audit test_yahoo_dated_lineup_audit test_historical_team_resolver test_historical_lineup_pipeline test_completed_fixture_feed test_yahoo_source_capability test_future_lineup_candidates test_category_gm_optimizer
+        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation test_optimizer_audit test_yahoo_dated_lineup_audit test_historical_team_resolver test_historical_lineup_pipeline test_completed_fixture_feed test_yahoo_source_capability test_future_lineup_candidates test_category_gm_optimizer test_daily_lineup_optimizer
       - name: Verify source compiles
-        run: python -m py_compile nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py category_gm_optimizer.py yahoo_lineup_validation.py yahoo_dated_lineup_audit.py historical_team_resolver.py historical_lineup_pipeline.py completed_fixture_feed.py yahoo_source_capability.py future_lineup_candidates.py
+        run: python -m py_compile nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py category_gm_optimizer.py daily_lineup_optimizer.py yahoo_lineup_validation.py yahoo_dated_lineup_audit.py historical_team_resolver.py historical_lineup_pipeline.py completed_fixture_feed.py yahoo_source_capability.py future_lineup_candidates.py
       - name: Live ESPN fixture smoke test
         run: |
           START=$(TZ=America/New_York date +%F)
