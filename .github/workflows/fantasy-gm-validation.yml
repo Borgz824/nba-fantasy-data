@@ -23,3 +23,8 @@ jobs:
         run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed
       - name: Verify source compiles
         run: python -m py_compile nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py
+      - name: Live ESPN fixture smoke test
+        run: |
+          START=$(TZ=America/New_York date +%F)
+          python espn_fixture_feed.py --start-date "$START" --end-date "$START" --out /tmp/espn_fixtures.json
+          python -c 'import json; d=json.load(open("/tmp/espn_fixtures.json")); assert d["coverage_verified"] and len(d["requested_yahoo_dates"])==1; print("ESPN daily endpoint validated; fixtures:",len(d["games"]))'
