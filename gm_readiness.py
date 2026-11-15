@@ -19,6 +19,8 @@ LEAGUES={"478.l.31010":"12","478.l.33011":"4"}
 def inspect(stats, snapshot):
     results={}
     seen=set()
+    schedule_payload=snapshot.get("schedule_validation") or {}
+    schedule_by_league={x["league_id"]:x for x in schedule_payload.get("leagues",[])}
     for league in snapshot.get("leagues",[]):
         lid=league.get("league_id")
         if lid not in LEAGUES or lid in seen or str(league.get("team_id"))!=LEAGUES.get(lid):
@@ -40,7 +42,11 @@ def inspect(stats, snapshot):
         mark("historical_sample",bool(players) and all(p["games"]>=5 for p in joined[lid]),"Some rostered players have fewer than five game logs")
         mark("injury_review",bool(players) and not any(p.get("status") for p in roster),"Roster has injury designations needing review")
         starts=league.get("verified_starts",{})
-        mark("remaining_starts",bool(players) and all(type(starts.get(p["name"])) is int and starts[p["name"]]>=0 for p in roster),"Missing player-specific confirmed starts")
+        schedule=schedule_by_league.get(lid,{})
+        schedule_players={p.get("name"):p for p in schedule.get("players",[])}
+        starts_valid=bool(players) and all(type(starts.get(p["name"])) is int and starts[p["name"]]>=0 for p in roster)
+        eligible_valid=schedule.get("future_starts_verified") is True and all(type(schedule_players.get(p["name"],{}).get("verified_eligible_starts")) is int for p in roster)
+        mark("remaining_starts",starts_valid and eligible_valid,"Future eligible starts not verified; scheduled games alone are insufficient")
         mark("lineup_eligibility",league.get("lineup_eligibility_verified") is True,"Yahoo lineup slots/date not independently validated")
         moves=league.get("moves_remaining")
         mark("moves_verified",type(moves) is int and 0<=moves<=4,"Weekly adds not reconciled against complete Yahoo transactions")
@@ -49,8 +55,9 @@ def inspect(stats, snapshot):
         limits=tx.get("limitations",{})
         mark("transaction_completeness",bool(tx) and not any(limits.get(k) for k in ("possibly_truncated","upstream_bound_reached","upstream_completeness_unverified","omitted_unrecognized_rows")),"Transaction provider coverage unverified")
         mark("opponent_starts",league.get("opponent_starts_verified") is True,"Opponent eligible future starts not confirmed")
-        mark("nba_schedule",league.get("nba_schedule_verified") is True,"Remaining NBA game dates not validated")
-        mark("timezone",league.get("yahoo_lineup_date_verified") is True,"Yahoo US lineup date / PH game date not verified")
+        schedule_verified=schedule_payload.get("nba_schedule_verified") is True and bool(schedule_by_league.get(lid,{}).get("players"))
+        mark("nba_schedule",schedule_verified,"Verified fixture feed and schedule audit missing")
+        mark("timezone",league.get("yahoo_lineup_date_verified") is True and schedule_verified,"Yahoo US lineup date / PH game date not verified")
         mark("independent_injury",league.get("injury_news_verified") is True,"Independent injury and availability review absent")
         mark("opponent_roster",league.get("opponent_roster_verified") is True,"Opponent roster snapshot not verified")
         mark("all_league_rosters",league.get("all_league_rosters_verified") is True,"All 16 team rosters not verified in snapshot")
