@@ -12,11 +12,27 @@ def candidate_name(value):
     last,first=value.split(",",1)
     if not last.strip() or not first.strip():return None
     return first.strip()+" "+last.strip()
-def merge(intelligence,report):
+def merge(intelligence,report,roster=None):
     players=intelligence["players"]
+    roster=roster or {"players":[],"coverage_verified":False}
+    roster_ids=set()
+    for r in roster["players"]:
+        aid=str(r["athlete_id"]);roster_ids.add(aid)
+        if not any(str(p["athlete_id"])==aid for p in players):
+            players.append({"athlete_id":aid,"name":r["name"],"team":r["team"],
+                            "position":r.get("position"),"last_game_date":None,
+                            "windows":{},"scheduled_games":[],"scheduled_game_count":0,
+                            "zero_game_roster_player":True,"stats_available":False,
+                            "usage_rate":None,"usage_rate_verified":False,
+                            "eligible_starts_verified":False,"injury_verified":False})
+    roster_by_id={str(r["athlete_id"]):r for r in roster["players"]}
     lookup={}
     for p in players:
-        lookup.setdefault(norm(p["name"]),[]).append(p)
+        variants=[p["name"]]+roster_by_id.get(str(p["athlete_id"]),{}).get("name_variants",[])
+        for name in variants:
+            if norm(name):
+                matches=lookup.setdefault(norm(name),[])
+                if p not in matches:matches.append(p)
     matched=[];unmatched=[];ambiguous=[]
     for entry in report["entries"]:
         name=candidate_name(entry.get("name_candidate"))
@@ -37,7 +53,11 @@ def merge(intelligence,report):
         p["injury_verified"]=bool(reports)
         p["injury_report_source"]=report["source_url"] if reports else None
         p["not_on_report_means_healthy"]=False
-    audit={"report_entries":len(report["entries"]),"matched_rows":len(matched),
+    intelligence["player_count"]=len(players)
+    intelligence["roster_identity_coverage_verified"]=roster.get("coverage_verified",False)
+    intelligence["roster_only_players"]=sum(p.get("zero_game_roster_player",False) for p in players)
+    audit={"roster_players":len(roster["players"]),"roster_only_players":intelligence["roster_only_players"],
+           "report_entries":len(report["entries"]),"matched_rows":len(matched),
            "unmatched_rows":len(unmatched),"ambiguous_rows":len(ambiguous),
            "matched_players":sum(bool(p["injury_reports"]) for p in players if "injury_reports" in p),
            "unmatched":unmatched,"ambiguous":ambiguous,"matched":matched,
@@ -50,10 +70,10 @@ def merge(intelligence,report):
     return intelligence,audit
 def main():
     p=argparse.ArgumentParser()
-    for x in ("intelligence","injuries","out","audit"):p.add_argument("--"+x,required=True)
+    for x in ("intelligence","injuries","out","audit","roster"):p.add_argument("--"+x,required=True)
     a=p.parse_args()
     data,audit=merge(json.loads(Path(a.intelligence).read_text()),
-                     json.loads(Path(a.injuries).read_text()))
+                     json.loads(Path(a.injuries).read_text()),json.loads(Path(a.roster).read_text()))
     Path(a.out).write_text(json.dumps(data,indent=2))
     Path(a.audit).write_text(json.dumps(audit,indent=2))
     print(json.dumps({k:v for k,v in audit.items() if not isinstance(v,list)}))
