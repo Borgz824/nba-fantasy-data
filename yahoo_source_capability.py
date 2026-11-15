@@ -12,7 +12,17 @@ def assess_yahoo_sources(matchup,roster,dated=False):
     has_categories=any(isinstance(side.get("categories"),list)
         for m in matchups for side in (m.get("home") or {},m.get("away") or {}))
     has_ids=bool(players) and all(bool(p.get("playerId")) for p in players)
+    eligible_count=sum(isinstance(p.get("eligiblePositions"),list) and bool(p["eligiblePositions"]) for p in players)
+    editable_count=sum(type(p.get("isEditable")) is bool for p in players)
+    undroppable_count=sum(type(p.get("isUndroppable")) is bool for p in players)
+    team_count=sum(bool(p.get("team") or p.get("proTeam")) for p in players)
     return {"matchup_category_totals_available":has_categories,
+            "roster_count":len(players),
+            "native_eligibility_count":eligible_count,
+            "editable_flag_count":editable_count,
+            "undroppable_flag_count":undroppable_count,
+            "nba_team_metadata_count":team_count,
+            "native_eligibility_complete":bool(players) and eligible_count==len(players),
             "roster_player_ids_available":has_ids,
             "historical_roster_snapshot":dated,
             "player_daily_fantasy_scoring_verified":False,
