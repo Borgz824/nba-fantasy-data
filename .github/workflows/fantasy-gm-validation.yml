@@ -93,7 +93,7 @@ jobs:
             'advanced_usage_ts_efg':all(x in sample for x in ('usage_rate','ts_pct','effective_fg_pct')),
             'upcoming_schedule':bool(schedule.get('games')),
             'completed_game_status':bool(rows) and 'game_id' in fields,
-            'player_remaining_games': 'upcoming_games' in sample or 'schedule' in sample,
+            'player_remaining_games': 'scheduled_games' in sample and 'scheduled_game_count' in sample,
             'injury_availability':any(x in sample for x in ('injury_status','availability_status','injury')),
           }
           report={'requirements':requirements,'players':len(players),'player_game_rows':len(rows),'fixtures':len(schedule.get('games',[])),
