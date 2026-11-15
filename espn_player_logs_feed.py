@@ -7,6 +7,7 @@ from urllib.request import Request,urlopen
 from urllib.parse import urlencode
 from espn_fixture_feed import espn_day,dates_between
 from completed_fixture_feed import extract_completed_day
+from nba_schedule_validation import team as normalize_team
 
 FIELDS=["game_id","game_date_utc","athlete_id","player","team","opponent","minutes","fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts","fg_pct","ft_pct","three_pct"]
 BASE="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?"
@@ -20,9 +21,9 @@ def parse_game(game,payload):
     if len(teams)!=2:raise ValueError("Missing two boxscore teams: "+game["game_id"])
     result=[]
     for entry in teams:
-        team=entry.get("team",{}).get("abbreviation")
-        if team not in (game["home"],game["away"]):raise ValueError("Boxscore team mismatch")
-        opponent=game["away"] if team==game["home"] else game["home"]
+        team=normalize_team(entry.get("team",{}).get("abbreviation"))
+        if team not in (normalize_team(game["home"]),normalize_team(game["away"])):raise ValueError("Boxscore team mismatch")
+        opponent=normalize_team(game["away"]) if team==normalize_team(game["home"]) else normalize_team(game["home"])
         for group in entry.get("statistics",[]):
             labels=group.get("labels",[])
             for athlete in group.get("athletes",[]):
