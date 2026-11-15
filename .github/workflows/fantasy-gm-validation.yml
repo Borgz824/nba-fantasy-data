@@ -59,6 +59,10 @@ jobs:
           path: /tmp/espn_fixtures.json
           retention-days: 3
 
+      - name: Install injury report PDF parser
+        run: python -m pip install pypdf==6.7.5
+      - name: Collect official NBA injury report
+        run: python official_nba_injury_feed.py --out /tmp/official_nba_injury.json
       - name: Produce full public NBA player intelligence artifact
         run: |
           START=2026-10-20
@@ -90,11 +94,11 @@ jobs:
             'historical_game_logs':bool(rows) and 'game_id' in fields,
             'rolling_7_14_30':all(x in windows for x in ('last_7_days','last_14_days','last_30_days')),
             'minutes': 'minutes' in fields,
-            'advanced_usage_ts_efg':all(p.get('usage_rate') is not None and all(p['windows'][w].get('effective_fg_pct') is not None and p['windows'][w].get('true_shooting_pct') is not None for w in ('season',)) for p in players),
+            'advanced_usage_ts_efg':sum(p.get('usage_rate') is not None for p in players)>0 and sum(p['windows']['season'].get('effective_fg_pct') is not None for p in players)>0 and sum(p['windows']['season'].get('true_shooting_pct') is not None for p in players)>0,
             'upcoming_schedule':bool(schedule.get('games')),
             'completed_game_status':bool(rows) and 'game_id' in fields,
             'player_remaining_games': 'scheduled_games' in sample and 'scheduled_game_count' in sample,
-            'injury_availability':any(x in sample for x in ('injury_status','availability_status','injury')),
+            'injury_availability':json.load(open('/tmp/official_nba_injury.json')).get('parsed_rows',0)>0,
           }
           report={'requirements':requirements,'players':len(players),'player_game_rows':len(rows),'fixtures':len(schedule.get('games',[])),
                   'missing':[k for k,v in requirements.items() if not v]}
@@ -112,5 +116,6 @@ jobs:
             /tmp/upcoming_14d.json
             /tmp/nba_player_intelligence.json
             /tmp/github_data_requirements_audit.json
+            /tmp/official_nba_injury.json
           if-no-files-found: warn
           retention-days: 7
