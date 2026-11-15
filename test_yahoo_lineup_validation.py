@@ -26,4 +26,21 @@ class LineupTests(unittest.TestCase):
  def test_bench_is_not_future_start(self):
   self.roster["players"][0]["selectedPosition"]="BN"
   self.assertIsNone(inspect_roster(self.lid,self.roster)["players"][0]["future_eligible_starts"])
+ def test_pwt_il_and_three_util_slots(self):
+  players=[{"playerId":str(i),"name":str(i),"selectedPosition":slot,"eligiblePositions":[slot] if slot not in ("BN","IL") else []}
+    for i,slot in enumerate(["PG","SG","G","SF","PF","F","C","Util","Util","Util","BN","BN","IL","IL"],1)]
+  report=inspect_roster("478.l.33011",{"snapshot":{"type":"current"},"players":players})
+  self.assertTrue(report["current_assignment_validated"])
+  self.assertEqual(report["slot_counts"]["IL"],2)
+  self.assertFalse(report["future_starts_verified"])
+ def test_pwt_excess_il_rejected(self):
+  players=[{"playerId":str(i),"name":str(i),"selectedPosition":"IL","eligiblePositions":[]} for i in range(3)]
+  report=inspect_roster("478.l.33011",{"snapshot":{"type":"current"},"players":players})
+  self.assertFalse(report["current_assignment_validated"])
+  self.assertEqual(report["overfilled_slots"]["IL"],3)
+ def test_noneditable_not_treated_as_future_lock(self):
+  self.roster["players"][0]["isEditable"]=False
+  p=inspect_roster(self.lid,self.roster)["players"][0]
+  self.assertIs(p["is_editable_now"],False)
+  self.assertIs(p["future_lineup_verified"],False)
 if __name__=="__main__":unittest.main()
