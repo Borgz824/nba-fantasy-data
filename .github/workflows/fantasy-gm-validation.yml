@@ -17,6 +17,7 @@ on:
       - 'future_lineup_candidates.py'
       - 'add_drop_optimizer.py'
       - 'nba_player_intelligence.py'
+      - 'espn_player_logs_feed.py'
       - 'category_gm_optimizer.py'
       - 'daily_lineup_optimizer.py'
       - 'GM_ANALYSIS_SPEC.md'
@@ -34,7 +35,7 @@ jobs:
       - name: Run schedule and feed tests
         run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation test_optimizer_audit test_yahoo_dated_lineup_audit test_historical_team_resolver test_historical_lineup_pipeline test_completed_fixture_feed test_yahoo_source_capability test_future_lineup_candidates test_category_gm_optimizer test_daily_lineup_optimizer test_bridge_identity test_nba_player_intelligence
       - name: Verify source compiles
-        run: python -m py_compile nba_player_intelligence.py nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py category_gm_optimizer.py daily_lineup_optimizer.py yahoo_lineup_validation.py yahoo_dated_lineup_audit.py historical_team_resolver.py historical_lineup_pipeline.py completed_fixture_feed.py yahoo_source_capability.py future_lineup_candidates.py
+        run: python -m py_compile espn_player_logs_feed.py nba_player_intelligence.py nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py category_gm_optimizer.py daily_lineup_optimizer.py yahoo_lineup_validation.py yahoo_dated_lineup_audit.py historical_team_resolver.py historical_lineup_pipeline.py completed_fixture_feed.py yahoo_source_capability.py future_lineup_candidates.py
       - name: Live ESPN fixture smoke test
         run: |
           START=$(TZ=America/New_York date +%F)
@@ -57,3 +58,26 @@ jobs:
           name: espn-upcoming-yahoo-today
           path: /tmp/espn_fixtures.json
           retention-days: 3
+
+      - name: Produce full public NBA player intelligence artifact
+        run: |
+          START=2026-10-20
+          END=$(TZ=America/New_York date -d 'yesterday' +%F)
+          TODAY=$(TZ=America/New_York date +%F)
+          FUTURE=$(TZ=America/New_York date -d '+14 days' +%F)
+          python espn_player_logs_feed.py --start-date "$START" --end-date "$END" --out /tmp/player_game_logs.csv --report /tmp/player_log_coverage.json
+          python espn_fixture_feed.py --start-date "$TODAY" --end-date "$FUTURE" --out /tmp/upcoming_14d.json
+          python nba_player_intelligence.py --logs /tmp/player_game_logs.csv --fixtures /tmp/upcoming_14d.json --as-of "$TODAY" --out /tmp/nba_player_intelligence.json
+          python -c 'import json; d=json.load(open("/tmp/nba_player_intelligence.json")); assert d["player_count"]>200 and d["source_player_games"]>1000; print("Produced NBA player intelligence:",d["player_count"],"players")'
+      - name: Upload full NBA player intelligence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-full-player-intelligence
+          path: |
+            /tmp/player_game_logs.csv
+            /tmp/player_log_coverage.json
+            /tmp/upcoming_14d.json
+            /tmp/nba_player_intelligence.json
+          if-no-files-found: warn
+          retention-days: 7
