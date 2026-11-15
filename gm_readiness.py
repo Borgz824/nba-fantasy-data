@@ -21,6 +21,7 @@ def inspect(stats, snapshot):
     seen=set()
     schedule_payload=snapshot.get("schedule_validation") or {}
     schedule_by_league={x["league_id"]:x for x in schedule_payload.get("leagues",[])}
+    lineup_by_league=snapshot.get("lineup_validation",{})
     for league in snapshot.get("leagues",[]):
         lid=league.get("league_id")
         if lid not in LEAGUES or lid in seen or str(league.get("team_id"))!=LEAGUES.get(lid):
@@ -47,7 +48,8 @@ def inspect(stats, snapshot):
         starts_valid=bool(players) and all(type(starts.get(p["name"])) is int and starts[p["name"]]>=0 for p in roster)
         eligible_valid=schedule.get("future_starts_verified") is True and all(type(schedule_players.get(p["name"],{}).get("verified_eligible_starts")) is int for p in roster)
         mark("remaining_starts",starts_valid and eligible_valid,"Future eligible starts not verified; scheduled games alone are insufficient")
-        mark("lineup_eligibility",league.get("lineup_eligibility_verified") is True,"Yahoo lineup slots/date not independently validated")
+        lineup=lineup_by_league.get(lid,{})
+        mark("lineup_eligibility",lineup.get("current_assignment_validated") is True and lineup.get("future_starts_verified") is True and league.get("lineup_eligibility_verified") is True,"Current Yahoo position eligibility or future lineup locks unverified")
         moves=league.get("moves_remaining")
         mark("moves_verified",type(moves) is int and 0<=moves<=4,"Weekly adds not reconciled against complete Yahoo transactions")
         mark("free_agent_states",bool(agents) and all(a.get("acquisitionState") in ("free_agent","waivers") for a in agents),"Missing/unknown acquisition state")
