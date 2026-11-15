@@ -24,6 +24,8 @@ def load_stats(path):
 def build(stats, leagues):
     index=defaultdict(list)
     for r in stats: index[(normalize(r["player"]),r["team"].upper())].append(r)
+    by_name=defaultdict(list)
+    for r in stats: by_name[normalize(r['player'])].append(r)
     results={}; problems=[]
     for league in leagues:
         lid=league["league_id"]
@@ -32,13 +34,19 @@ def build(stats, leagues):
         for p in league["players"]:
             key=(normalize(p.get("name")),TEAM_ALIASES.get(str(p.get("team") or "").upper(),str(p.get("team") or "").upper()))
             games=index.get(key,[])
-            ids={r["athlete_id"] for r in games}
+            match_method='name_team'
+            if not games:
+                candidates=by_name.get(normalize(p.get('name')),[])
+                if candidates and len({r['athlete_id'] for r in candidates})==1:
+                    games=candidates
+                    match_method='unique_name_fallback'
+            ids={r['athlete_id'] for r in games}
             status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else "unmatched")
             if status!="matched": problems.append({"league_id":lid,"name":p.get("name"),"team":p.get("team"),"reason":status})
             sums={k:sum(float(r[k]) for r in games if r[k] not in ("",None)) for k in METRICS} if status=="matched" else {}
             n=len(games) if status=="matched" else 0
             out={"league_id":lid,"yahoo_player_id":p.get("playerId"),"player":p.get("name"),
-                 "team":p.get("team"),"slot":p.get("selectedPosition"),"match_status":status,
+                 "team":p.get("team"),"slot":p.get("selectedPosition"),"match_status":status,"match_method":match_method,
                  "espn_athlete_id":next(iter(ids)) if status=="matched" else "",
                  "games":n}
             for k in METRICS:out[k+"_total"]=sums.get(k,"")

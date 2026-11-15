@@ -1,0 +1,129 @@
+name: Fantasy GM Validation
+on:
+  push:
+    branches:
+      - fix/fantasy-40-check-validation
+  pull_request:
+    paths:
+      - 'nba_schedule_validation.py'
+      - 'espn_fixture_feed.py'
+      - 'gm_readiness.py'
+      - 'yahoo_lineup_validation.py'
+      - 'yahoo_dated_lineup_audit.py'
+      - 'historical_team_resolver.py'
+      - 'historical_lineup_pipeline.py'
+      - 'completed_fixture_feed.py'
+      - 'yahoo_source_capability.py'
+      - 'future_lineup_candidates.py'
+      - 'add_drop_optimizer.py'
+      - 'nba_player_intelligence.py'
+      - 'nba_injury_identity.py'
+      - 'espn_nba_roster_feed.py'
+      - 'official_nba_injury_feed.py'
+      - 'espn_player_logs_feed.py'
+      - 'category_gm_optimizer.py'
+      - 'daily_lineup_optimizer.py'
+      - 'GM_ANALYSIS_SPEC.md'
+      - 'test_*.py'
+      - '.github/workflows/fantasy-gm-validation.yml'
+  workflow_dispatch:
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run schedule and feed tests
+        run: python -m unittest -v test_nba_schedule_validation test_espn_fixture_feed test_yahoo_lineup_validation test_optimizer_audit test_yahoo_dated_lineup_audit test_historical_team_resolver test_historical_lineup_pipeline test_completed_fixture_feed test_yahoo_source_capability test_future_lineup_candidates test_category_gm_optimizer test_daily_lineup_optimizer test_bridge_identity test_nba_player_intelligence test_nba_injury_identity
+      - name: Verify source compiles
+        run: python -m py_compile espn_nba_roster_feed.py nba_injury_identity.py official_nba_injury_feed.py espn_player_logs_feed.py nba_player_intelligence.py nba_schedule_validation.py espn_fixture_feed.py gm_readiness.py add_drop_optimizer.py category_gm_optimizer.py daily_lineup_optimizer.py yahoo_lineup_validation.py yahoo_dated_lineup_audit.py historical_team_resolver.py historical_lineup_pipeline.py completed_fixture_feed.py yahoo_source_capability.py future_lineup_candidates.py
+      - name: Live ESPN fixture smoke test
+        run: |
+          START=$(TZ=America/New_York date +%F)
+          python espn_fixture_feed.py --start-date "$START" --end-date "$START" --out /tmp/espn_fixtures.json
+          python -c 'import json; d=json.load(open("/tmp/espn_fixtures.json")); assert d["coverage_verified"] and len(d["requested_yahoo_dates"])==1; print("ESPN daily endpoint validated; fixtures:",len(d["games"]))'
+
+      - name: Live historical ESPN completed-game smoke test
+        run: |
+          python completed_fixture_feed.py --start-date 2026-11-12 --end-date 2026-11-12 --out /tmp/espn_completed_20261112.json
+          python -c 'import json; from nba_schedule_validation import NY,parse_utc; d=json.load(open("/tmp/espn_completed_20261112.json")); assert d["coverage_verified"]; assert all(g["status"]=="final" and parse_utc(g["start_utc"]).astimezone(NY).date().isoformat()=="2026-11-12" for g in d["games"]); print("Nov 12 completed NBA games:",len(d["games"]),"; independent completeness not guaranteed")'
+      - name: Upload public historical fixture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: espn-completed-2026-11-12
+          path: /tmp/espn_completed_20261112.json
+          retention-days: 7
+      - name: Upload public upcoming fixture artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: espn-upcoming-yahoo-today
+          path: /tmp/espn_fixtures.json
+          retention-days: 3
+
+      - name: Install injury report PDF parser
+        run: python -m pip install pypdf==6.7.5
+      - name: Collect official NBA injury report
+        run: python official_nba_injury_feed.py --out /tmp/official_nba_injury.json
+      - name: Collect all NBA team rosters
+        run: python espn_nba_roster_feed.py --out /tmp/nba_rosters.json
+      - name: Produce full public NBA player intelligence artifact
+        run: |
+          START=2026-10-20
+          END=$(TZ=America/New_York date -d 'yesterday' +%F)
+          TODAY=$(TZ=America/New_York date +%F)
+          FUTURE=$(TZ=America/New_York date -d '+14 days' +%F)
+          python espn_player_logs_feed.py --start-date "$START" --end-date "$END" --out /tmp/player_game_logs.csv --report /tmp/player_log_coverage.json
+          python espn_fixture_feed.py --start-date "$TODAY" --end-date "$FUTURE" --out /tmp/upcoming_14d.json
+          python nba_player_intelligence.py --logs /tmp/player_game_logs.csv --fixtures /tmp/upcoming_14d.json --as-of "$TODAY" --out /tmp/nba_player_intelligence.json
+          python nba_injury_identity.py --intelligence /tmp/nba_player_intelligence.json --injuries /tmp/official_nba_injury.json --roster /tmp/nba_rosters.json --out /tmp/nba_player_intelligence.json --audit /tmp/injury_identity_audit.json
+          python -c 'import json; d=json.load(open("/tmp/nba_player_intelligence.json")); assert d["player_count"]>200 and d["source_player_games"]>1000; print("Produced NBA player intelligence:",d["player_count"],"players")'
+      - name: Audit ten GitHub NBA data requirements
+        if: success()
+        run: |
+          python - <<'PY'
+          import csv,json
+          from pathlib import Path
+          rows=list(csv.DictReader(open('/tmp/player_game_logs.csv')))
+          data=json.load(open('/tmp/nba_player_intelligence.json'))
+          schedule=json.load(open('/tmp/upcoming_14d.json'))
+          players=data['players']
+          sample=players[0] if players else {}
+          metrics={'minutes','fgm','fga','ftm','fta','3pm','3pa','oreb','dreb','reb','ast','stl','blk','to','pts'}
+          fields=set(rows[0]) if rows else set()
+          windows=set(sample.get('windows',{}))
+          requirements={
+            'player_id_name_team':all(x in fields for x in ('athlete_id','player','team')),
+            'player_position': bool(players) and all(p.get('position') for p in players),
+            'season_counting_stats':metrics.issubset(fields),
+            'historical_game_logs':bool(rows) and 'game_id' in fields,
+            'rolling_7_14_30':all(x in windows for x in ('last_7_days','last_14_days','last_30_days')),
+            'minutes': 'minutes' in fields,
+            'advanced_usage_ts_efg':sum(p.get('usage_rate') is not None for p in players)>0 and sum(p.get('windows',{}).get('season',{}).get('effective_fg_pct') is not None for p in players)>0 and sum(p.get('windows',{}).get('season',{}).get('true_shooting_pct') is not None for p in players)>0,
+            'upcoming_schedule':bool(schedule.get('games')),
+            'completed_game_status':bool(rows) and 'game_id' in fields,
+            'player_remaining_games': 'scheduled_games' in sample and 'scheduled_game_count' in sample,
+            'injury_availability':json.load(open('/tmp/injury_identity_audit.json')).get('all_report_rows_matched',False) and data.get('roster_identity_coverage_verified',False),
+          }
+          report={'requirements':requirements,'players':len(players),'player_game_rows':len(rows),'fixtures':len(schedule.get('games',[])),
+                  'missing':[k for k,v in requirements.items() if not v]}
+          Path('/tmp/github_data_requirements_audit.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+          PY
+      - name: Upload full NBA player intelligence artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nba-full-player-intelligence
+          path: |
+            /tmp/player_game_logs.csv
+            /tmp/player_log_coverage.json
+            /tmp/upcoming_14d.json
+            /tmp/nba_player_intelligence.json
+            /tmp/github_data_requirements_audit.json
+            /tmp/official_nba_injury.json
+            /tmp/injury_identity_audit.json
+            /tmp/nba_rosters.json
+          if-no-files-found: warn
+          retention-days: 7

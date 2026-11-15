@@ -52,6 +52,30 @@ def optimize(stats,snapshot,min_games=5):
         count=starts.get(p.get("name"))
         if not isinstance(count,int) or isinstance(count,bool) or count<0:
             validation.append({"player":p.get("name"),"reason":"remaining eligible starts not verified"})
+    # Cross-check independently audited Yahoo lineup and fixture evidence.
+    # Flags alone must never authorize scenario generation.
+    audit=snapshot.get("lineup_validation") or {}
+    schedule=snapshot.get("schedule_validation") or {}
+    if audit.get("league_id")!=lid or audit.get("current_assignment_validated") is not True or audit.get("future_starts_verified") is not True:
+        validation.append({"reason":"independent Yahoo lineup audit or future locks unverified"})
+    if schedule.get("league_id")!=lid or schedule.get("future_starts_verified") is not True:
+        validation.append({"reason":"independent future-start schedule audit missing"})
+    audited={str(p.get("playerId")):p for p in audit.get("players",[])}
+    scheduled={str(p.get("playerId")):p for p in schedule.get("players",[])}
+    for p in people:
+        pid=str(p.get("playerId"))
+        count=starts.get(p.get("name"))
+        a=audited.get(pid)
+        g=scheduled.get(pid)
+        if not a or not g:
+            validation.append({"player":p.get("name"),"reason":"Yahoo player ID absent from independent lineup/schedule audit"})
+            continue
+        verified=g.get("verified_eligible_starts")
+        scheduled_count=g.get("scheduled_games")
+        if type(verified) is not int or type(scheduled_count) is not int or verified<0 or verified>scheduled_count or type(count) is not int or verified!=count:
+            validation.append({"player":p.get("name"),"reason":"eligible starts inconsistent with independently audited fixture bounds"})
+        if a.get("future_lineup_verified") is not True or a.get("future_eligible_starts")!=count:
+            validation.append({"player":p.get("name"),"reason":"future Yahoo lineup evidence does not corroborate starts"})
     if not snapshot.get("starts_verified"):validation.append({"reason":"remaining starts unverified"})
     if not snapshot.get("lineup_eligibility_verified"):validation.append({"reason":"lineup eligibility unverified"})
     if not isinstance(snapshot.get("moves_remaining"),int) or snapshot["moves_remaining"]<1:
