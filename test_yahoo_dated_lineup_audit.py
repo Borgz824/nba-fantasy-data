@@ -27,4 +27,11 @@ class DatedLineupTests(unittest.TestCase):
  def test_overfilled_capacity(self):
   self.roster["players"].append({"playerId":"3","name":"C","team":"NYK","selectedPosition":"PG"})
   self.assertFalse(self.run_audit()["historical_snapshot_valid"])
+ def test_missing_nba_team_is_unknown(self):
+  del self.roster["players"][0]["team"]
+  r=self.run_audit()
+  self.assertFalse(r["historical_snapshot_valid"])
+  self.assertEqual(r["missing_professional_team_player_ids"],["1"])
+  self.assertIsNone(r["players"][0]["historical_active_game_assignment"])
+  self.assertIsNone(r["players"][0]["scheduled_games_on_date"])
 if __name__=="__main__":unittest.main()
