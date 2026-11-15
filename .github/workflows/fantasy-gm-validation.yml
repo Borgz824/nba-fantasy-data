@@ -85,12 +85,12 @@ jobs:
           windows=set(sample.get('windows',{}))
           requirements={
             'player_id_name_team':all(x in fields for x in ('athlete_id','player','team')),
-            'player_position': 'position' in fields or 'position' in sample,
+            'player_position': bool(players) and all(p.get('position') for p in players),
             'season_counting_stats':metrics.issubset(fields),
             'historical_game_logs':bool(rows) and 'game_id' in fields,
             'rolling_7_14_30':all(x in windows for x in ('last_7_days','last_14_days','last_30_days')),
             'minutes': 'minutes' in fields,
-            'advanced_usage_ts_efg':all(x in sample for x in ('usage_rate','ts_pct','effective_fg_pct')),
+            'advanced_usage_ts_efg':all(p.get('usage_rate') is not None and all(p['windows'][w].get('effective_fg_pct') is not None and p['windows'][w].get('true_shooting_pct') is not None for w in ('season',)) for p in players),
             'upcoming_schedule':bool(schedule.get('games')),
             'completed_game_status':bool(rows) and 'game_id' in fields,
             'player_remaining_games': 'scheduled_games' in sample and 'scheduled_game_count' in sample,
