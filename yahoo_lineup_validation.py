@@ -29,7 +29,7 @@ def inspect_roster(league_id,roster):
         counts[slot]+=1
         eligible=p.get("eligiblePositions")
         position_known=isinstance(eligible,list) and bool(eligible) and all(isinstance(v,str) for v in eligible)
-        compatible=position_known and slot in eligible if slot in ACTIVE else None
+        compatible=(slot in eligible if position_known else None) if slot in ACTIVE else None
         checks.append({"playerId":pid,"name":p.get("name"),"slot":slot,
                        "eligible_positions":eligible if position_known else None,
                        "assigned_slot_compatible":compatible,
