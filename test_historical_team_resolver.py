@@ -10,7 +10,7 @@ class HistoricalTeamTests(unittest.TestCase):
   return resolve_historical_teams(self.roster,[self.row] if rows is None else rows,self.day,self.fixtures if fixtures is None else fixtures)
  def test_game_id_matches_even_when_utc_next_day(self):
   r=self.run_resolve();self.assertTrue(r["all_teams_verified"])
-  self.assertEqual(r["players"][0]["team"],"NY")
+  self.assertEqual(r["players"][0]["team"],"NYK")
  def test_missing_log_not_assumed_no_game(self):
   r=self.run_resolve([]);self.assertFalse(r["all_teams_verified"])
   self.assertIsNone(r["players"][0]["team"])
