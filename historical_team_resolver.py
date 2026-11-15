@@ -21,9 +21,11 @@ def resolve_historical_teams(roster,stats,as_of_date,fixtures=None):
             gid=str(g.get("game_id") or "")
             if not gid or gid in game_ids:raise ValueError("Missing/duplicate fixture ID")
             game_ids.add(gid)
+    game_teams={g['game_id']:{team(g.get('home')),team(g.get('away'))} for g in fixtures if g.get('yahoo_date')==as_of_date}
     index=defaultdict(list)
     for r in stats:
-        if str(r.get("game_id") or "") in game_ids:
+        gid=str(r.get("game_id") or "")
+        if gid in game_ids and team(r.get("team")) in game_teams[gid]:
             index[normalize(r.get("player"))].append(r)
     out=[];unresolved=[];seen=set()
     for p in roster.get("players",[]):
