@@ -9,7 +9,7 @@ from collections import defaultdict
 from pathlib import Path
 
 METRICS=("fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts")
-ALIASES={"nikola jokic":"nikola jokic","og anunoby":"og anunoby"}
+TEAM_ALIASES={"NOP":"NO","NYK":"NY","SAS":"SA","WAS":"WSH","GSW":"GS","UTA":"UTAH"}
 def normalize(s):
     s=unicodedata.normalize("NFKD",str(s or "")).encode("ascii","ignore").decode().lower()
     s=re.sub(r"[^a-z0-9 ]+"," ",s)
@@ -30,7 +30,7 @@ def build(stats, leagues):
         if lid not in ("478.l.31010","478.l.33011"): raise ValueError("Unexpected league "+lid)
         joined=[]
         for p in league["players"]:
-            key=(normalize(p.get("name")),str(p.get("team") or "").upper())
+            key=(normalize(p.get("name")),TEAM_ALIASES.get(str(p.get("team") or "").upper(),str(p.get("team") or "").upper()))
             games=index.get(key,[])
             ids={r["athlete_id"] for r in games}
             status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else "unmatched")
