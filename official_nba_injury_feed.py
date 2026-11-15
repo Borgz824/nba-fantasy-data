@@ -37,9 +37,8 @@ def collect():
             # Official report is tabular; preserve raw row for audit if player
             # extraction is ambiguous rather than guessing an identity.
             if "," not in prefix:continue
-            columns=re.split(r'\\s{2,}',prefix)
-            names=[c.strip() for c in columns if re.match(r"^[^,]+,\\s*[^,]+$",c.strip())]
-            candidate=names[-1] if names else None
+            name_match=re.search(r"([A-Za-zÀ-ÿ.'-]+),\\s+([A-Za-zÀ-ÿ.'-]+(?: [A-Za-zÀ-ÿ.'-]+)?)\\s*$",prefix)
+            candidate=(name_match.group(1)+", "+name_match.group(2)) if name_match else None
             entries.append({"page":pno,"raw_line":line.strip(),"status":match.group(1),
                             "name_candidate":candidate,"name_parse_verified":bool(candidate)})
     return {"source":"NBA official injury report","source_url":url,
