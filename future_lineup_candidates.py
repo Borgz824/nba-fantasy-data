@@ -18,7 +18,12 @@ def audit_future_candidates(league_id,roster,fixture_payload,start_date,end_date
             "scheduled_games":len(matches),"scheduled_yahoo_dates":[g["yahoo_date"] for g in matches],
             "verified_eligible_starts":None,"future_lineup_verified":False,
             "future_lock_time_verified":False})
+    scheduled=[p for p in players if p["scheduled_games"]>0]
+    active_scheduled=[p for p in scheduled if p["assigned_slot"] in {"PG","SG","G","SF","PF","F","C","Util"}]
     return {"league_id":league_id,"current_assignment_validated":lineup["current_assignment_validated"],
+        "scheduled_rostered_player_count":len(scheduled),
+        "scheduled_current_active_slot_count":len(active_scheduled),
+        "scheduled_bench_or_il_count":len(scheduled)-len(active_scheduled),
         "nba_schedule_provider_response_validated":True,
         "nba_schedule_independent_completeness_verified":False,
         "future_starts_verified":False,"future_locks_verified":False,
