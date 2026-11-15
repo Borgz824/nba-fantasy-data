@@ -9,7 +9,7 @@ from espn_fixture_feed import espn_day,dates_between
 from completed_fixture_feed import extract_completed_day
 from nba_schedule_validation import team as normalize_team
 
-FIELDS=["game_id","game_date_utc","athlete_id","player","team","opponent","minutes","fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts","fg_pct","ft_pct","three_pct"]
+FIELDS=["game_id","game_date_utc","athlete_id","player","team","position","opponent","minutes","fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts","fg_pct","ft_pct","three_pct"]
 BASE="https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?"
 def pair(v):
     a,b=str(v).split("-");return float(a),float(b)
@@ -38,7 +38,7 @@ def parse_game(game,payload):
                 if not aid:raise ValueError("Missing athlete ID")
                 def val(k):return float(d.get(k,0))
                 row={"game_id":game["game_id"],"game_date_utc":game["start_utc"],"athlete_id":aid,
-                     "player":athlete["athlete"]["displayName"],"team":team,"opponent":opponent,
+                     "player":athlete["athlete"]["displayName"],"team":team,"position":(athlete["athlete"].get("position") or {}).get("abbreviation",""),"opponent":opponent,
                      "minutes":float(d["MIN"].split(":")[0])+float(d["MIN"].split(":")[1])/60 if ":" in str(d["MIN"]) else float(d["MIN"]),
                      "fgm":fgm,"fga":fga,"ftm":ftm,"fta":fta,"3pm":tpm,"3pa":tpa,
                      "oreb":val("OREB"),"dreb":val("DREB"),"reb":val("REB"),
