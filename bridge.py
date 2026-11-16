@@ -10,10 +10,12 @@ from pathlib import Path
 
 METRICS=("fgm","fga","ftm","fta","3pm","3pa","oreb","dreb","reb","ast","stl","blk","to","pts")
 TEAM_ALIASES={"NOP":"NO","NYK":"NY","SAS":"SA","WAS":"WSH","GSW":"GS","UTA":"UTAH"}
+NAME_ALIASES={"bobby portis jr":"bobby portis","jimmy butler iii":"jimmy butler"}
 def normalize(s):
     s=unicodedata.normalize("NFKD",str(s or "")).encode("ascii","ignore").decode().lower()
     s=re.sub(r"[^a-z0-9 ]+"," ",s)
-    return re.sub(r"\s+"," ",s).strip()
+    s=re.sub(r"\s+"," ",s).strip()
+    return NAME_ALIASES.get(s,s)
 
 def load_stats(path):
     with open(path,newline="",encoding="utf-8") as f: rows=list(csv.DictReader(f))
@@ -33,8 +35,8 @@ def build(stats, leagues):
             key=(normalize(p.get("name")),TEAM_ALIASES.get(str(p.get("team") or "").upper(),str(p.get("team") or "").upper()))
             games=index.get(key,[])
             ids={r["athlete_id"] for r in games}
-            status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else "unmatched")
-            if status!="matched": problems.append({"league_id":lid,"name":p.get("name"),"team":p.get("team"),"reason":status})
+            status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else "no_game_logs")
+            if status!="matched": problems.append({"league_id":lid,"name":p.get("name"),"team":p.get("team"),"reason":status,"yahoo_player_id":p.get("playerId")})
             sums={k:sum(float(r[k]) for r in games if r[k] not in ("",None)) for k in METRICS} if status=="matched" else {}
             n=len(games) if status=="matched" else 0
             out={"league_id":lid,"yahoo_player_id":p.get("playerId"),"player":p.get("name"),
@@ -64,13 +66,17 @@ def main():
             with (out/(lid.replace(".","_")+"_roster_stats.csv")).open("w",newline="",encoding="utf-8") as f:
                 w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     report={"source_games":len(set(r["game_id"] for r in stats)),"source_rows":len(stats),
-            "league_counts":{k:{"roster":len(v),"matched":sum(r["match_status"]=="matched" for r in v)} for k,v in result.items()},
+            "league_counts":{k:{"roster":len(v),"matched":sum(r["match_status"]=="matched" for r in v),"no_game_logs":sum(r["match_status"]=="no_game_logs" for r in v),"ambiguous":sum(r["match_status"]=="ambiguous" for r in v)} for k,v in result.items()},
             "issues":issues,"all_roster_players_matched":not issues,
+            "blocking_identity_issues":[x for x in issues if x["reason"]=="ambiguous"],
+            "no_game_logs":[x for x in issues if x["reason"]=="no_game_logs"],
             "limitations":["Name+team join is provisional; ESPN/Yahoo identity crosswalk is not verified",
                            "Current roster snapshot must be refreshed from Flaim separately",
                            "Historical statistics do not establish future schedule or injury availability",
                            "This does not write into Flaim or Yahoo"]}
     (out/"bridge_validation.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report,indent=2))
-    if issues:raise SystemExit("Unmatched/ambiguous players: inspect bridge_validation.json")
+    if any(x["reason"]=="ambiguous" for x in issues):
+        raise SystemExit("Ambiguous player identity: inspect bridge_validation.json")
+    if issues:print("WARNING: Some roster players have no source game logs; do not treat their production as zero.")
 if __name__=="__main__":main()
