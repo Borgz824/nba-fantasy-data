@@ -5,6 +5,7 @@ Roster JSON schema: {"leagues":[{"league_id":"478.l.31010","team_id":"12","playe
 Never assumes ESPN athlete_id == Yahoo playerId. Ambiguous/unmatched players are excluded and reported.
 """
 import argparse, csv, json, re, unicodedata
+from datetime import datetime, timezone
 from collections import defaultdict
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def build(stats, leagues):
             key=(normalize(p.get("name")),TEAM_ALIASES.get(str(p.get("team") or "").upper(),str(p.get("team") or "").upper()))
             games=index.get(key,[])
             ids={r["athlete_id"] for r in games}
-            status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else "no_game_logs")
+            status="matched" if games and len(ids)==1 else ("ambiguous" if len(ids)>1 else ("no_game_logs" if p.get("playerId") else "identity_unverified"))
             if status!="matched": problems.append({"league_id":lid,"name":p.get("name"),"team":p.get("team"),"reason":status,"yahoo_player_id":p.get("playerId")})
             sums={k:sum(float(r[k]) for r in games if r[k] not in ("",None)) for k in METRICS} if status=="matched" else {}
             n=len(games) if status=="matched" else 0
@@ -65,7 +66,10 @@ def main():
         if rows:
             with (out/(lid.replace(".","_")+"_roster_stats.csv")).open("w",newline="",encoding="utf-8") as f:
                 w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+    latest=max(datetime.fromisoformat(r["game_date_utc"].replace("Z","+00:00")) for r in stats)
+    age_days=(datetime.now(timezone.utc)-latest).total_seconds()/86400
     report={"source_games":len(set(r["game_id"] for r in stats)),"source_rows":len(stats),
+            "latest_game_utc":latest.isoformat(),"source_age_days":round(age_days,2),"source_stale":age_days>3,
             "league_counts":{k:{"roster":len(v),"matched":sum(r["match_status"]=="matched" for r in v),"no_game_logs":sum(r["match_status"]=="no_game_logs" for r in v),"ambiguous":sum(r["match_status"]=="ambiguous" for r in v)} for k,v in result.items()},
             "issues":issues,"all_roster_players_matched":not issues,
             "blocking_identity_issues":[x for x in issues if x["reason"]=="ambiguous"],
@@ -76,7 +80,8 @@ def main():
                            "This does not write into Flaim or Yahoo"]}
     (out/"bridge_validation.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report,indent=2))
-    if any(x["reason"]=="ambiguous" for x in issues):
+    if any(x["reason"] in ("ambiguous","identity_unverified") for x in issues):
         raise SystemExit("Ambiguous player identity: inspect bridge_validation.json")
     if issues:print("WARNING: Some roster players have no source game logs; do not treat their production as zero.")
+    if age_days>3:raise SystemExit("Stale game-log source (>3 days): refresh collector before current GM analysis")
 if __name__=="__main__":main()
