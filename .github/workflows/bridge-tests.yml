@@ -1,0 +1,18 @@
+name: Validate Fantasy Bridge
+on:
+  push:
+    paths:
+      - 'bridge.py'
+      - 'test_bridge.py'
+      - '.github/workflows/bridge-tests.yml'
+  workflow_dispatch:
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test ESPN to Yahoo bridge
+        run: python -m unittest -v test_bridge.py
