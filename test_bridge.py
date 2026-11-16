@@ -45,5 +45,26 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(issues[0]["reason"],"ambiguous")
         self.assertEqual(result["478.l.31010"][0]["match_status"],"ambiguous")
 
+
+class MissingGameRegressionTests(unittest.TestCase):
+    def test_bobby_portis_alias(self):
+        from bridge import METRICS
+        row=dict(player="Bobby Portis",team="MIL",athlete_id="100",game_id="1",game_date_utc="2026-11-15T00:00Z")
+        row.update({k:"1" for k in METRICS})
+        result,issues=build([row],[{"league_id":"478.l.31010","players":[{"name":"Bobby Portis Jr.","team":"MIL","playerId":"1000"}]}])
+        self.assertEqual(result["478.l.31010"][0]["match_status"],"matched")
+        self.assertEqual(issues,[])
+
+    def test_known_yahoo_player_no_games_is_missing_not_zero(self):
+        result,issues=build([], [{"league_id":"478.l.31010","players":[{"name":"Brandon Ingram","team":"LAC","playerId":"5601"}]}])
+        row=result["478.l.31010"][0]
+        self.assertEqual(row["match_status"],"no_game_logs")
+        self.assertEqual(row["pts_per_game"],"")
+        self.assertEqual(issues[0]["reason"],"no_game_logs")
+
+    def test_missing_yahoo_id_is_unverified(self):
+        result,issues=build([], [{"league_id":"478.l.31010","players":[{"name":"Unknown Player","team":"LAC"}]}])
+        self.assertEqual(issues[0]["reason"],"identity_unverified")
+
 if __name__=="__main__":
     unittest.main()
